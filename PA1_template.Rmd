@@ -7,19 +7,68 @@ output:
 
 
 ## Loading and preprocessing the data
-
-
+```{r loading and preprocessing the data}
+activity <- read.csv("activity.csv")
+activity$date<-as.Date(activity$date)
+```
 
 ## What is mean total number of steps taken per day?
+```{r results='hide'}
+library (dplyr)
+library(lubridate)
+library(lattice)
+```
+Total number of steps per day
+```{r total number of steps per day}
+step_sum<-activity %>% group_by (date) %>% summarize (step_sum = sum(steps,na.rm = TRUE))
+step_sum
 
+hist(rep(ymd(step_sum$date),step_sum$step_sum),breaks ="days",main="Total Number of Steps Taken Each Day",xlab="Date",ylab="Steps")
 
+activity %>% group_by (date) %>% summarize (step_mean = mean(steps,na.rm = TRUE), step_median=median(steps,na.rm = TRUE))
+```
 
 ## What is the average daily activity pattern?
+```{r average daily activity pattern}
+average_step<-activity %>% group_by(interval) %>%
+summarize(average_steps=mean(steps,na.rm = TRUE))
 
+plot (average_step$interval, average_step$average_steps,type='l',main='Average number of steps', xlab = 'Interval', ylab = 'Averaged steps across days')
 
+#Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+average_step$interval[average_step$average_steps==max(average_step$average_steps)]
+```
 
 ## Imputing missing values
+Calculate total number of missing values
+```{r calculate total number of missing values}
+sum(is.na(activity$steps))
+```
+Filling in missing values
+```{r filling in missing values}
+# create a new data set (activity1) that is equal to the original dataset but with the missing data filled based on the mean for that 5-minute interval
+activity1<-activity
+for (i in activity[is.na(activity$steps),][,3]) {
+  activity1[is.na(activity$steps) & activity$interval==i,1]<-average_step[average_step$interval==i,2]
+}
 
+step_sum1<-activity1 %>% group_by (date) %>% summarize (step_sum = sum(steps))
+hist(rep(ymd(step_sum1$date),step_sum1$step_sum),breaks ="days",main="Total Number of Steps Taken Each Day after Imputing",xlab="Date",ylab="Steps")
 
+# summary of mean and median total number of steps taken per day after imputing
+activity1 %>% group_by (date) %>% summarize (step_mean = mean(steps), step_median=median(steps))
+```
+According to the new summarization table, the mean and median total number of steps taken per day after imputing missing data have different values on days with missing values. After imputing missing data, no missing bars observed in the histogram anymore. 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r difference in activity patterns}
+#create a new varible(weekdays) in activity1 with two levels – “weekday” and “weekend” 
+activity1$weekdays<-weekdays(ymd(activity1$date))
+activity1[activity1$weekdays %in% c("Monday","Tuesday","Wednesday","Thursday","Friday"),4]<-"weekday"
+activity1[activity1$weekdays %in% c("Saturday","Sunday"),4]<-"weekend"
+#panel plot
+average_step1<-activity1 %>% group_by(interval,weekdays) %>%
+summarize(average_steps=mean(steps))
+xyplot(average_step1$average_steps~average_step1$interval|average_step1$weekdays,type='l',layout=c(1,2),ylab="number of steps", xlab="interval")
+```
+According to the panel plot, activity patterns are different between weekdays and weekends
